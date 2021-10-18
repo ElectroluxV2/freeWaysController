@@ -1,6 +1,5 @@
 import time
 from pyray import *
-import numpy as np
 from pynput.mouse import Button, Controller
 from pynput import keyboard
 
@@ -17,18 +16,29 @@ def on_activate(key):
 
 
 def lin_equ(start, end):
+
+    # 2 points line
     if start.x == end.x:
-        return lambda x: x
+        return {
+            'x': lambda x: x,
+            'y': lambda y: y
+        }
 
-    left = np.array([[start.x, 1], [end.x, 1]])
-    right = np.array([start.y, end.y])
-    result = np.linalg.solve(left, right)
+    slope = (end.y - start.y) / (end.x - start.x)
+    intercept = start.y - slope * start.x
 
-    a = result[0]
-    b = result[1]
+    print(f'')
 
-    return lambda x: a * x + b
+    if slope == 0:
+        return {
+            'x': lambda x: x + intercept,
+            'y': lambda y: y
+        }
 
+    return {
+        'x': lambda x: slope * x + intercept,
+        'y': lambda y: (y - intercept) / slope
+    }
 
 def simulate(start, end, window):
     global mouse
@@ -37,7 +47,17 @@ def simulate(start, end, window):
     real_end = Vector2(end.x + window.x, end.y + window.y)
     lin_func = lin_equ(real_start, real_end)
 
-    print('start')
+    start_x = int(real_start.x)
+    end_x = int(real_end.x)
+
+    start_y = int(real_start.y)
+    end_y = int(real_end.y)
+
+    points_based_on_x_axis = abs(start_x - end_x)
+    points_based_on_y_axis = abs(start_y - end_y)
+
+    print(f'points_based_on_x_axis: {points_based_on_x_axis}')
+    print(f'points_based_on_y_axis: {points_based_on_y_axis}')
 
     minimize_window()
     time.sleep(0.1)
@@ -46,23 +66,35 @@ def simulate(start, end, window):
     mouse.press(Button.left)
     time.sleep(0.1)
 
-    total_steps = abs(real_end.x - real_start.x)
+    total_steps = points_based_on_x_axis if points_based_on_x_axis >= points_based_on_y_axis else points_based_on_y_axis
     total_time = 1
     sleep_time = total_time / (total_steps if total_time != 0 else 5)
 
-    start_x = real_start.x
-    end_x = real_end.x
 
-    for x in range(int(start_x), int(end_x) + 1, -1 if start_x > end_x else 1):
-        if break_loop:
-            print('break')
-            break_loop = False
-            restore_window()
-            maximize_window()
-            break
+    if points_based_on_x_axis >= points_based_on_y_axis:
+        for x in range(start_x, end_x + 1, -1 if start_x > end_x else 1):
+            if break_loop:
+                print('break')
+                break_loop = False
+                restore_window()
+                maximize_window()
+                break
+            y = lin_func['x'](x)
 
-        mouse.position = (x, lin_func(x))
-        time.sleep(sleep_time)
+            mouse.position = (x, y)
+            time.sleep(sleep_time) 
+    else:
+        for y in range(start_y, end_y + 1, -1 if start_y > end_y else 1):
+            if break_loop:
+                print('break')
+                break_loop = False
+                restore_window()
+                maximize_window()
+                break
+            x = lin_func['y'](y)
+
+            mouse.position = (x, y)
+            time.sleep(sleep_time)   
 
     time.sleep(0.1)
     mouse.release(Button.left)
@@ -82,7 +114,7 @@ def main():
         begin_drawing()
         clear_background([0, 0, 0, 1])
 
-        draw_line_v(start, end, [255, 0, 0, 255]);
+        draw_line_v(start, end, [255, 0, 0, 255])
 
         # draw_pixel(int(start.x), int(line(start.x)), [255, 0, 0, 255])
         # draw_pixel(int(end.x), int(line(end.x)), [255, 0, 0, 255])
